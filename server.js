@@ -25,6 +25,7 @@ async function getImageFromLine(messageId) {
 
 // วิเคราะห์ข้อความจากรูป พร้อม log ผล OCR lines
 function parseSummary(text) {
+  // แปลงข้อความ OCR เป็น array แถว
   const lines = text
     .split('\n')
     .map(l => l.replace(/\s+/g, ' ').trim())
@@ -32,35 +33,25 @@ function parseSummary(text) {
 
   console.log("OCR Lines:", lines);
 
-  let summary = [];
-  let date = ''; // ไม่มีวันที่ใน OCR นี้ เลยไม่ใส่
+  // คาดว่า lines จะมีลักษณะเป็นแถว เช่น
+  // ['แผนก ยอดวันนี้ ยอดที่ต้องการ', 'IT 1200 2000', 'COM 5000 11000']
 
-  // หา index ของคำว่า 'แผนก' เป็น header
+  // หาแถว header ที่มีคำว่า 'แผนก' เพื่อข้าม
   const headerIndex = lines.findIndex(line => line.includes('แผนก'));
-  if (headerIndex === -1) return 'ไม่พบข้อมูลแผนก';
+  if (headerIndex === -1) return 'ไม่พบหัวตารางแผนก';
 
-  // สมมติข้อมูลจริงเริ่มที่ headerIndex+1
+  let summary = [];
+  let date = ''; // ไม่มีวันที่ในตัวอย่างนี้
+
+  // เริ่มอ่านข้อมูลจากแถวหลัง header
   for (let i = headerIndex + 1; i < lines.length; i++) {
-    const dept = lines[i];
-    const todayLine = lines[i + 1] || '';
-    const targetLine = lines[i + 2] || '';
+    const cols = lines[i].split(' ').filter(Boolean);
 
-    // กรณีข้อมูลที่รวมกัน เช่น '5000 11000' ให้แยกตัวเลข
-    let today = 0, target = 0;
-
-    // ถ้า targetLine มี 2 ตัวเลข เช่น '5000 11000'
-    const nums = targetLine.match(/\d+/g);
-    if (nums && nums.length >= 2) {
-      today = parseInt(nums[0], 10);
-      target = parseInt(nums[1], 10);
-      i += 2; // ข้ามไปเลย 2 บรรทัด
-    } else {
-      today = parseInt(todayLine.replace(/[^\d]/g, ''), 10) || 0;
-      target = parseInt(targetLine.replace(/[^\d]/g, ''), 10) || 0;
-      i += 2; // ข้าม 2 บรรทัด
-    }
-
-    if (dept && today && target) {
+    // สมมติโครงสร้าง: [แผนก, ยอดวันนี้, ยอดที่ต้องการ]
+    if (cols.length >= 3) {
+      const dept = cols[0];
+      const today = parseInt(cols[1].replace(/[^\d]/g, ''), 10) || 0;
+      const target = parseInt(cols[2].replace(/[^\d]/g, ''), 10) || 0;
       const diff = today - target;
       summary.push(`แผนก ${dept} ยอดวันนี้ ${today} ยอดที่ต้องการ ${target} เป้า/ขาดทุน ${diff} บาท`);
     }
