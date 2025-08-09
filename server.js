@@ -34,7 +34,7 @@ function parseSummary(text) {
     .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  console.log("OCR Lines ver:", lines);
+  console.log("OCR Lines ver: 1.2", lines);
 
   // แก้ปัญหากรณีตัวเลขติดกันใน 1 cell
   lines = lines.flatMap(item => {
