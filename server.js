@@ -31,7 +31,7 @@ function parseSummary(text) {
     .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  console.log("OCR Lines:", lines);
+  console.log("OCR Lines ver 1.1:", lines);
 
   // คาดว่า lines จะมีลักษณะเป็นแถว เช่น
   // ['แผนก ยอดวันนี้ ยอดที่ต้องการ', 'IT 1200 2000', 'COM 5000 11000']
