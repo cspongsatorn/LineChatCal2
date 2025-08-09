@@ -27,26 +27,44 @@ async function getImageFromLine(messageId) {
 function parseSummary(text) {
   const lines = text
     .split('\n')
-    .map(l => l.replace(/\s+/g, ' ').trim()) // รวมช่องว่างซ้ำ
+    .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  console.log("OCR Lines:", lines);  // <-- เพิ่มบรรทัดนี้ดูผล OCR lines
+  console.log("OCR Lines:", lines);
 
   let summary = [];
-  let date = '';
+  let date = ''; // ไม่มีวันที่ใน OCR นี้ เลยไม่ใส่
 
-  lines.forEach((line, idx) => {
-    if (/แผนก/.test(line)) {
-      const dept = line.replace(/แผนก\s*/g, '').trim();
-      const today = parseInt((lines[idx + 1] || '').replace(/[^\d]/g, ''), 10) || 0;
-      const target = parseInt((lines[idx + 2] || '').replace(/[^\d]/g, ''), 10) || 0;
+  // หา index ของคำว่า 'แผนก' เป็น header
+  const headerIndex = lines.findIndex(line => line.includes('แผนก'));
+  if (headerIndex === -1) return 'ไม่พบข้อมูลแผนก';
+
+  // สมมติข้อมูลจริงเริ่มที่ headerIndex+1
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    const dept = lines[i];
+    const todayLine = lines[i + 1] || '';
+    const targetLine = lines[i + 2] || '';
+
+    // กรณีข้อมูลที่รวมกัน เช่น '5000 11000' ให้แยกตัวเลข
+    let today = 0, target = 0;
+
+    // ถ้า targetLine มี 2 ตัวเลข เช่น '5000 11000'
+    const nums = targetLine.match(/\d+/g);
+    if (nums && nums.length >= 2) {
+      today = parseInt(nums[0], 10);
+      target = parseInt(nums[1], 10);
+      i += 2; // ข้ามไปเลย 2 บรรทัด
+    } else {
+      today = parseInt(todayLine.replace(/[^\d]/g, ''), 10) || 0;
+      target = parseInt(targetLine.replace(/[^\d]/g, ''), 10) || 0;
+      i += 2; // ข้าม 2 บรรทัด
+    }
+
+    if (dept && today && target) {
       const diff = today - target;
       summary.push(`แผนก ${dept} ยอดวันนี้ ${today} ยอดที่ต้องการ ${target} เป้า/ขาดทุน ${diff} บาท`);
     }
-    if (/วันที่/.test(line)) {
-      date = line.replace(/\s+/g, ' ');
-    }
-  });
+  }
 
   return `สรุปยอดประจำ${date}\n` + (summary.length ? summary.join('\n') : 'ไม่พบข้อมูลแผนก');
 }
