@@ -9,58 +9,76 @@ app.use(express.json());
 
 const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
-// สร้าง Vision Client จาก ENV
+// Google Vision Client
 const visionClient = new vision.ImageAnnotatorClient({
   credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS)
 });
 
-// ดึงรูปจาก LINE
+// ฟังก์ชันดึงภาพจาก LINE
 async function getImageFromLine(messageId) {
-  const res = await axios.get(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
-    headers: { Authorization: `Bearer ${LINE_TOKEN}` },
-    responseType: 'arraybuffer'
-  });
+  const res = await axios.get(
+    `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+    {
+      headers: { Authorization: `Bearer ${LINE_TOKEN}` },
+      responseType: 'arraybuffer'
+    }
+  );
   return res.data;
 }
 
-// วิเคราะห์ข้อความจากรูป พร้อม log ผล OCR lines
+// ฟังก์ชันประมวลผลข้อความจาก OCR → สรุปยอด
 function parseSummary(text) {
-  // แปลงข้อความ OCR เป็น array แถว
-  const lines = text
+  // แปลงข้อความ OCR เป็น array ทีละบรรทัด
+  let lines = text
     .split('\n')
     .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  console.log("OCR Lines ver 1.1:", lines);
+  console.log("OCR Lines ver:", lines);
 
-  // คาดว่า lines จะมีลักษณะเป็นแถว เช่น
-  // ['แผนก ยอดวันนี้ ยอดที่ต้องการ', 'IT 1200 2000', 'COM 5000 11000']
+  // แก้ปัญหากรณีตัวเลขติดกันใน 1 cell
+  lines = lines.flatMap(item => {
+    if (/^\d+\s+\d+$/.test(item)) {
+      return item.split(/\s+/);
+    }
+    return item;
+  });
 
-  // หาแถว header ที่มีคำว่า 'แผนก' เพื่อข้าม
-  const headerIndex = lines.findIndex(line => line.includes('แผนก'));
+  // หา header index
+  const headerIndex = lines.findIndex(l => l.includes('แผนก'));
   if (headerIndex === -1) return 'ไม่พบหัวตารางแผนก';
 
-  let summary = [];
-  let date = ''; // ไม่มีวันที่ในตัวอย่างนี้
+  // เอา header และข้อมูล
+  const headers = ['แผนก', 'ยอดวันนี้', 'ยอดที่ต้องการ'];
+  let rawData = lines.slice(headerIndex + 1);
 
-  // เริ่มอ่านข้อมูลจากแถวหลัง header
-  for (let i = headerIndex + 1; i < lines.length; i++) {
-    const cols = lines[i].split(' ').filter(Boolean);
-
-    // สมมติโครงสร้าง: [แผนก, ยอดวันนี้, ยอดที่ต้องการ]
-    if (cols.length >= 3) {
-      const dept = cols[0];
-      const today = parseInt(cols[1].replace(/[^\d]/g, ''), 10) || 0;
-      const target = parseInt(cols[2].replace(/[^\d]/g, ''), 10) || 0;
-      const diff = today - target;
-      summary.push(`แผนก ${dept} ยอดวันนี้ ${today} ยอดที่ต้องการ ${target} เป้า/ขาดทุน ${diff} บาท`);
-    }
+  let dataRows = [];
+  for (let i = 0; i < rawData.length; i += headers.length) {
+    let row = {};
+    headers.forEach((h, idx) => {
+      row[h] = rawData[i + idx] || '';
+    });
+    dataRows.push(row);
   }
 
-  return `สรุปยอดประจำ${date}\n` + (summary.length ? summary.join('\n') : 'ไม่พบข้อมูลแผนก');
+  if (!dataRows.length) return 'ไม่พบข้อมูลแผนก';
+
+  // สร้างข้อความสรุป
+  let message = '📊 สรุปยอดประจำ\n';
+  dataRows.forEach(row => {
+    const today = parseInt(row['ยอดวันนี้'].replace(/[^\d]/g, ''), 10) || 0;
+    const target = parseInt(row['ยอดที่ต้องการ'].replace(/[^\d]/g, ''), 10) || 0;
+    const diff = today - target;
+    message += `\nแผนก ${row['แผนก']}\n`;
+    message += `ยอดวันนี้: ${today}\n`;
+    message += `ยอดที่ต้องการ: ${target}\n`;
+    message += `เป้า/ขาดทุน: ${diff} บาท\n`;
+  });
+
+  return message;
 }
 
-// ส่งข้อความกลับ LINE
+// ฟังก์ชันส่งข้อความกลับไปทาง LINE
 async function replyMessage(replyToken, text) {
   await axios.post('https://api.line.me/v2/bot/message/reply', {
     replyToken,
@@ -70,6 +88,7 @@ async function replyMessage(replyToken, text) {
   });
 }
 
+// Webhook
 app.post('/webhook', async (req, res) => {
   try {
     const events = req.body.events || [];
@@ -93,11 +112,11 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error('Webhook error:', err);
-    res.sendStatus(200);  // ตอบ 200 เพื่อไม่ให้ LINE retry เยอะ
+    res.sendStatus(200); // ตอบ 200 เพื่อไม่ให้ LINE retry
   }
 });
 
-const PORT = 10000 || 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
