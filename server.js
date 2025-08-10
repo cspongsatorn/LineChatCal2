@@ -28,13 +28,14 @@ async function getImageFromLine(messageId) {
 
 // ฟังก์ชันประมวลผลข้อความจาก OCR → สรุปยอด
 function parseSummary(text) {
+  console.log("text ORIGIN", text);
   // แปลงข้อความ OCR เป็น array ทีละบรรทัด
   let lines = text
     .split('\n')
     .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
 
-  console.log("OCR Lines ver: 1.2", lines);
+  console.log("OCR Lines ver: 2.1", lines);
 
   // แก้ปัญหากรณีตัวเลขติดกันใน 1 cell
   lines = lines.flatMap(item => {
