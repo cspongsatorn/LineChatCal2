@@ -132,6 +132,7 @@ function parseReport3Columns(text) {
 
 // ฟังก์ชัน format สรุปยอด
 function formatSummaryReport(dataRows, soExternalData, reportDate) {
+  console.log("dataRows:", dataRows);
   const group1 = ['HW', 'DW', 'DH', 'BM', 'BR', 'GG'];
   const group2 = ['PA', 'PB', 'PT', 'HT', 'GD'];
 
@@ -156,16 +157,11 @@ function formatSummaryReport(dataRows, soExternalData, reportDate) {
     message += `Diff : ${diff >= 0 ? '+' : ''}${formatNumber(diff)}\n\n`;
   });
 
-  // Top 3 (ใช้ Rank จาก JSON)
-  const top3Group1 = dataRows
-    .filter(r => group1.includes(r['OMCH3']))
-    .sort((a, b) => parseInt(a['Rank']) - parseInt(b['Rank']))
-    .slice(0, 3);
-
-  message += `ยอดขายอันดับ 1-3 (Group1)\nวันที่ ${reportDate}\n`;
-  top3Group1.forEach(r => {
-    message += `${r.Rank}. ${r.OMCH3} ${formatNumber(parseFloat(r['POS + S/O'].replace(/,/g, '')))}\n`;
-  });
+  message += `ยอดขายอันดับ 1-3 \n`;
+  message += `วันที่ ${reportDate} \n`;
+  message += `1. \n`;
+  message += `2. \n`;
+  message += `3. \n\n`;
   message += `\n-------------------------------\n\n`;
 
   // ===== Group 2 =====
@@ -182,16 +178,17 @@ function formatSummaryReport(dataRows, soExternalData, reportDate) {
     message += `Diff : ${diff >= 0 ? '+' : ''}${formatNumber(diff)}\n\n`;
   });
 
-  // Top 3 (ใช้ Rank จาก JSON)
-  const top3Group2 = dataRows
-    .filter(r => group2.includes(r['OMCH3']))
-    .sort((a, b) => parseInt(a['Rank']) - parseInt(b['Rank']))
-    .slice(0, 3);
+  message += `ยอดขายอันดับ 1-3 PA \n`;
+  message += `วันที่ ${reportDate} \n`;
+  message += `1. \n`;
+  message += `2. \n`;
+  message += `3. \n\n`;
 
-  message += `ยอดขายอันดับ 1-3 (Group2)\nวันที่ ${reportDate}\n`;
-  top3Group2.forEach(r => {
-    message += `${r.Rank}. ${r.OMCH3} ${formatNumber(parseFloat(r['POS + S/O'].replace(/,/g, '')))}\n`;
-  });
+  message += `ยอดขายอันดับ 1-3 PB \n`;
+  message += `วันที่ ${reportDate} \n`;
+  message += `1. \n`;
+  message += `2. \n`;
+  message += `3. \n\n`;
 
   return message;
 }
